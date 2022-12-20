@@ -15,10 +15,7 @@
     "mergeForkBlock":0,
     "mergeNetsplitBlock":0,
     "terminalTotalDifficulty":0,
-    "terminalTotalDifficultyPassed":true,
-    "ethash":{
-
-    }
+    "terminalTotalDifficultyPassed":true
   },
   "nonce":"0x0",
   "timestamp":"0x6159af19",
