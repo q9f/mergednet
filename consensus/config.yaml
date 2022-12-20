@@ -8,7 +8,7 @@ PRESET_BASE: 'mainnet'
 # * 'mainnet' - there can be only one
 # * 'prater' - testnet
 # Must match the regex: [a-z0-9\-]
-CONFIG_NAME: 'mainnet'
+CONFIG_NAME: 'mergednet'
 
 # Transition
 # ---------------------------------------------------------------
