@@ -1,2 +1,3 @@
 data/
 consensus/mnemonic.yaml
+consensus/validator_keys/
