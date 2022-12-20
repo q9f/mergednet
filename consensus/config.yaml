@@ -26,8 +26,8 @@ MIN_GENESIS_ACTIVE_VALIDATOR_COUNT: 8
 MIN_GENESIS_TIME: 1671553095
 # Mainnet initial fork version, recommend altering for testnets
 GENESIS_FORK_VERSION: 0x00677693
-# 5400 seconds (1.5 hours)
-GENESIS_DELAY: 5400
+# 7200 seconds (2 hours)
+GENESIS_DELAY: 7200
 
 # Forking
 # ---------------------------------------------------------------
