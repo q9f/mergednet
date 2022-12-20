@@ -43,7 +43,7 @@ BELLATRIX_FORK_VERSION: 0x02677693
 BELLATRIX_FORK_EPOCH: 0
 # Capella
 CAPELLA_FORK_VERSION: 0x03677693
-CAPELLA_FORK_EPOCH: 0
+CAPELLA_FORK_EPOCH: 18446744073709551615
 
 # Time parameters
 # ---------------------------------------------------------------
