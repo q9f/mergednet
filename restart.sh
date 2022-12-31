@@ -26,7 +26,7 @@ function InitGeth()
 function RunGeth()
 {
 	Log "Running geth $1 on port $((8551 + $1))"
-	local bootnodes=$(cat execution/bootnodes.txt 2>/dev/null | tr '\n' ',')
+	local bootnodes=$(cat execution/bootnodes.txt 2>/dev/null | tr '\n' ',' | sed s/,$//g)
 	echo "Geth Bootnodes = $bootnodes"
 	nohup geth \
 	  --networkid 39677693 \
@@ -48,6 +48,8 @@ function StoreGethHash() {
 
 	echo $genesis_hash > execution/genesis_hash.txt
 	echo $genesis_hash > consensus/deposit_contract_block.txt
+	sed -i s/TERMINAL_BLOCK_HASH:.*/"TERMINAL_BLOCK_HASH: $genesis_hash"/g consensus/config.yaml
+	cat consensus/config.yaml|grep TERMINAL_BLOCK_HASH
 	Log "genesis_hash = $genesis_hash"
 }
 function GenerateGenesisSSZ()
@@ -125,30 +127,29 @@ function RunValidator()
 	  --importKeystoresPassword "./consensus/validator_keys_$1/password.txt" \
 	  --logLevel $LogLevel \
 	  > ./logs/validator_$1.log &
-
 }
 
 #git clone https://github.com/q9f/mergednet.git
 #cd mergednet
-LogLevel=debug
+LogLevel=info
 PrepareEnvironment
 
 InitGeth 0
 RunGeth 0
 InitGeth 1
 RunGeth 1
-InitGeth 2
-RunGeth 2
-InitGeth 3
-RunGeth 3
+#InitGeth 2
+#RunGeth 2
+#InitGeth 3
+#RunGeth 3
 
 StoreGethHash
 GenerateGenesisSSZ
 
 RunBeacon 0
 RunBeacon 1
-RunBeacon 2
-RunBeacon 3
+#RunBeacon 2
+#RunBeacon 3
 
 sleep 5
 
@@ -165,11 +166,6 @@ clear && tail -f logs/validator_0.log -n1000
 clear && tail -f logs/validator_1.log -n1000
 
 curl http://localhost:9596/eth/v1/node/identity | jq
-curl http://localhost:9696/eth/v1/node/identity | jq
-
 curl http://localhost:9596/eth/v1/node/peers | jq
-curl http://localhost:9696/eth/v1/node/peers | jq
-
 curl http://localhost:9596/eth/v1/node/syncing | jq
-curl http://localhost:9696/eth/v1/node/syncing | jq
 "
