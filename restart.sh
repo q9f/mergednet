@@ -15,6 +15,15 @@ function PrepareEnvironment() {
 
 	my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
 }
+function AdjustTimestamps {
+	timestamp=`date +%s`	
+	timestampHex=`printf '%x' $timestamp`
+	Log "timestamp=$timestamp"
+	Log "timestampHex=$timestampHex"
+
+	sed -i s/\"timestamp\":.*/\"timestamp\":\"0x$timestampHex\",/g execution/genesis.json
+	sed -i s/MIN_GENESIS_TIME:.*/MIN_GENESIS_TIME: $timestamp/g consensus/config.yaml
+}
 function InitGeth()
 {
 	Log "Initializing geth $1"
@@ -29,10 +38,17 @@ function RunGeth()
 	local bootnodes=$(cat execution/bootnodes.txt 2>/dev/null | tr '\n' ',' | sed s/,$//g)
 	echo "Geth Bootnodes = $bootnodes"
 	nohup geth \
+		--http \
+		--http.port $((8545 + $1)) \
+		--http.api=eth,net,web3,personal,miner \
+		--http.addr=0.0.0.0 \
+		--http.vhosts=* \
+		--http.corsdomain=* \
 	  --networkid 39677693 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
 	  --port $((30303 + $1)) \
+	  --syncmode full \
 	  --bootnodes=$bootnodes \
 	  > ./logs/geth_$1.log &
 	sleep 1 # Set to 5 seconds to allow the geth to bind to the external IP before reading enode
@@ -44,7 +60,7 @@ function RunGeth()
 	echo $my_enode >> execution/bootnodes.txt
 }
 function StoreGethHash() {
-	genesis_hash=`geth attach --exec "eth.getBlockByNumber(0).hash" data/execution/0/geth.ipc | sed s/^\"// | sed s/\"$//`
+	genesis_hash=`geth attach --exec "eth.getBlockByNumber(0).hash" data/execution/1/geth.ipc | sed s/^\"// | sed s/\"$//`
 
 	echo $genesis_hash > execution/genesis_hash.txt
 	echo $genesis_hash > consensus/deposit_contract_block.txt
@@ -96,10 +112,11 @@ function RunBeacon() {
 
 function CheckGeth()
 {
-	echo Checking Geth $1
-	test -z $my_ip || my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
+	Log "Checking Geth $1"
+	test -z $my_ip && my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
 	geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//
-	geth attach --exec "admin.peers" data/execution/$1/geth.ipc | grep "remoteAddress" | grep $my_ip
+	echo Peers: `geth attach --exec "admin.peers" data/execution/$1/geth.ipc | grep "remoteAddress" | grep -e $my_ip -e "127.0.0.1"`
+	echo Block Number: `geth attach --exec "eth.blockNumber" data/execution/$1/geth.ipc`
 }
 function CheckBeacon()
 {
@@ -111,8 +128,12 @@ function CheckBeacon()
 }
 function CheckAll()
 {
-	CheckGeth 0; CheckGeth 1; CheckGeth 2; CheckGeth 3
-	CheckBeacon 0; CheckBeacon 1; CheckBeacon 2; CheckBeacon 3
+	for i in $(seq 0 $(($NodesCount-1))); do
+		CheckGeth $i
+	done
+	for i in $(seq 0 $(($NodesCount-1))); do
+		CheckBeacon $i
+	done
 }
 function RunValidator()
 {
@@ -120,6 +141,7 @@ function RunValidator()
 	cp -R consensus/validator_keys consensus/validator_keys_$1
 	nohup ./lodestar validator \
 	  --dataDir "./data/consensus/$1" \
+	  --beaconNodes "http://127.0.0.1:$((9596 + $1))" \
 	  --suggestedFeeRecipient "0xCaA29806044A08E533963b2e573C1230A2cd9a2d" \
 	  --graffiti "YOLO MERGEDNET GETH LODESTAR" \
 	  --paramsFile "./consensus/config.yaml" \
@@ -132,28 +154,29 @@ function RunValidator()
 #git clone https://github.com/q9f/mergednet.git
 #cd mergednet
 LogLevel=info
+NodesCount=2
+
 PrepareEnvironment
 
-InitGeth 0
-RunGeth 0
-InitGeth 1
-RunGeth 1
-#InitGeth 2
-#RunGeth 2
-#InitGeth 3
-#RunGeth 3
+AdjustTimestamps
+
+for i in $(seq 0 $(($NodesCount-1))); do
+	InitGeth $i
+	RunGeth $i
+done
 
 StoreGethHash
 GenerateGenesisSSZ
 
-RunBeacon 0
-RunBeacon 1
-#RunBeacon 2
-#RunBeacon 3
+for i in $(seq 0 $(($NodesCount-1))); do
+	RunBeacon $i
+done
 
 sleep 5
 
-RunValidator 0
+for i in $(seq 0 $(($NodesCount-1))); do
+	RunValidator $i
+done
 
 CheckAll
 

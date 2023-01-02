@@ -18,7 +18,7 @@
     "terminalTotalDifficultyPassed":true
   },
   "nonce":"0x44144",
-  "timestamp":"0x63A1E047",
+  "timestamp":"0x63b2e69e",
   "extraData":"0x887b30d1e617484474521f31a37376760299fa7f15eb4214fce4157744b896c2",
   "gasLimit":"0x1c9c380",
   "difficulty":"0x20000",
@@ -29,6 +29,15 @@
   "parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000",
   "alloc":{
     "0xCaA29806044A08E533963b2e573C1230A2cd9a2d":{
+      "balance":"0x48806e540b8eee0000"
+    },
+    "0x88cfFd22aE99E4f7f1bC794E591BcB85b421B522":{
+      "balance":"0x48806e540b8eee0000"
+    },
+    "0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f":{
+      "balance":"0x48806e540b8eee0000"
+    },
+    "0x90e0d0b7d7CdBb79934f5B1F81efAC5689142775":{
       "balance":"0x48806e540b8eee0000"
     },
     "0x0420420420420420420420420420420420420420":{

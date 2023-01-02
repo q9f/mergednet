@@ -27,7 +27,7 @@ MIN_GENESIS_TIME: 1671553095
 # Mainnet initial fork version, recommend altering for testnets
 GENESIS_FORK_VERSION: 0x00677693
 # 7200 seconds (2 hours)
-GENESIS_DELAY: 7200
+GENESIS_DELAY: 60
 
 # Forking
 # ---------------------------------------------------------------
