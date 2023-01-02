@@ -21,6 +21,13 @@ function CheckBeacon()
 	echo Peer Count: `curl http://localhost:$((9596 + $1))/eth/v1/node/peers 2>/dev/null | jq -r ".meta.count"`
 	curl http://localhost:$((9596 + $1))/eth/v1/node/syncing 2>/dev/null | jq
 }
+function CheckBeacon_Prysm()
+{
+	Log "Checking Beacon $1"
+	curl localhost:$((8000 + $1))/p2p
+	curl http://localhost:$((8000 + $1))/healthz
+	curl http://localhost:$((3500 + $1))/eth/v1/node/syncing 2>/dev/null | jq
+}
 function CheckAll()
 {
 	for i in $(seq 0 $(($NodesCount-1))); do
@@ -47,6 +54,8 @@ function PrepareEnvironment() {
 	rm execution/bootnodes.txt consensus/bootnodes.txt
 
 	test -d logs || mkdir logs
+	test -d data || mkdir data
+	test -d data/wallet_dir || mkdir data/wallet_dir
 	cp -R consensus/validator_keys consensus/validator_keys_1
 
 	my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
@@ -119,14 +128,14 @@ function RunBeacon() {
 	local bootnodes=`cat consensus/bootnodes.txt 2>/dev/null | grep . | tr '\n' ',' | sed s/,$//g`
 	echo "Beacon Bootnodes = $bootnodes"
 	
-	nohup ./lodestar beacon \
+	nohup clients/lodestar beacon \
 	  --suggestedFeeRecipient "0xCaA29806044A08E533963b2e573C1230A2cd9a2d" \
 	  --execution.urls "http://127.0.0.1:$((8551 + $1))" \
 	  --jwt-secret "./data/execution/$1/geth/jwtsecret" \
 	  --dataDir "./data/consensus/$1" \
 	  --paramsFile "./consensus/config.yaml" \
 	  --genesisStateFile "./consensus/genesis.ssz" \
-	  --enr.ip 127.0.0.1 \
+	  --enr.ip $my_ip \
 	  --rest.port $((9596 + $1)) \
 	  --port $((9000 + $1)) \
 	  --network.connectToDiscv5Bootnodes true \
@@ -134,48 +143,63 @@ function RunBeacon() {
 	  --bootnodes=$bootnodes \
 	  > ./logs/beacon_$1.log &
 
-	sleep 1
 	echo Waiting for Beacon enr ...
-	local my_enr=`curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.enr"`
+	local my_enr=''
 	while [[ -z $my_enr ]]
 	do
 		sleep 1
-		local my_enr=`curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.enr"`
+		my_enr=`curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.enr"`
 	done
 	echo "My Enr = $my_enr"
 	echo $my_enr >> consensus/bootnodes.txt
 }
 
-function CheckGeth()
-{
-	Log "Checking Geth $1"
-	test -z $my_ip && my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
-	geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//
-	echo Peers: `geth attach --exec "admin.peers" data/execution/$1/geth.ipc | grep "remoteAddress" | grep -e $my_ip -e "127.0.0.1"`
-	echo Block Number: `geth attach --exec "eth.blockNumber" data/execution/$1/geth.ipc`
-}
-function CheckBeacon()
-{
-	Log "Checking Beacon $1"
-	echo My ID: `curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.peer_id"`
-	echo My enr: `curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.enr"`
-	echo Peer Count: `curl http://localhost:$((9596 + $1))/eth/v1/node/peers 2>/dev/null | jq -r ".meta.count"`
-	curl http://localhost:$((9596 + $1))/eth/v1/node/syncing 2>/dev/null | jq
-}
-function CheckAll()
-{
-	for i in $(seq 0 $(($NodesCount-1))); do
-		CheckGeth $i
+function RunBeacon_Prysm() {
+	Log "Running Beacon $1"
+	local bootnodes=`cat consensus/bootnodes.txt 2>/dev/null | grep . | tr '\n' ',' | sed s/,$//g`
+	echo "Beacon Bootnodes = $bootnodes"
+	
+	nohup clients/beacon-chain \
+	  --min-sync-peers=$i \
+	  --suggested-fee-recipient "0xCaA29806044A08E533963b2e573C1230A2cd9a2d" \
+	  --execution-endpoint=http://localhost:$((8551 + $1)) \
+	  --jwt-secret "./data/execution/$1/geth/jwtsecret" \
+	  --datadir "./data/consensus/$1" \
+	  --chain-config-file=consensus/config.yaml \
+	  --config-file=consensus/config.yaml \
+	  --genesis-state "./consensus/genesis.ssz" \
+	  --contract-deployment-block=0 \
+	  --verbosity $LogLevel \
+	  --bootstrap-node=$bootnodes \
+	  --rpc-host=0.0.0.0 \
+	  --grpc-gateway-host=0.0.0.0 \
+	  --monitoring-host=0.0.0.0 \
+	  --p2p-host-ip=$my_ip \
+	  --accept-terms-of-use \
+	  --chain-id=39677693 \
+	  --rpc-port=$((4010 + $1)) \
+	  --p2p-tcp-port=$((13000 + $1)) \
+	  --p2p-udp-port=$((12000 + $1)) \
+	  --grpc-gateway-port=$((3500 + $1)) \
+	  --monitoring-port=$((8000 + $1)) \
+	  > ./logs/beacon_$1.log &
+
+	echo Waiting for Beacon enr ...
+	local my_enr=''
+	while [[ -z $my_enr ]]
+	do
+		sleep 1
+		my_enr=$(curl localhost:8000/p2p 2>/dev/null | grep ^self= | sed s/self=//g | sed s/,\\/ip4.*//g)
 	done
-	for i in $(seq 0 $(($NodesCount-1))); do
-		CheckBeacon $i
-	done
+	echo "My Enr = $my_enr"
+	echo $my_enr >> consensus/bootnodes.txt
 }
+
 function RunValidator()
 {
 	Log "Running Validators $1"
 	cp -R consensus/validator_keys consensus/validator_keys_$1
-	nohup ./lodestar validator \
+	nohup clients/lodestar validator \
 	  --dataDir "./data/consensus/$1" \
 	  --beaconNodes "http://127.0.0.1:$((9596 + $1))" \
 	  --suggestedFeeRecipient "0xCaA29806044A08E533963b2e573C1230A2cd9a2d" \
@@ -186,7 +210,38 @@ function RunValidator()
 	  --logLevel $LogLevel \
 	  > ./logs/validator_$1.log &
 }
+function RunValidator_Prysm()
+{
+	Log "Running Validators $1"
+	cp -R consensus/validator_keys consensus/validator_keys_$1
+	CreateWallet_Prysm $1
+	nohup clients/validator \
+	  --datadir "./data/consensus/$1" \
+	  --beacon-rpc-provider=localhost:$((4010 + $1)) \
+	  --beacon-rpc-gateway-provider=localhost:$((3500 + $1)) \
+	  --accept-terms-of-use \
+  	  --graffiti "YOLO MERGEDNET GETH LODESTAR" \
+	  --suggested-fee-recipient "0xCaA29806044A08E533963b2e573C1230A2cd9a2d" \
+	  --chain-config-file "./consensus/config.yaml" \
+	  --wallet-dir=data/wallet_dir/$1 \
+	  --wallet-password-file=consensus/validator_keys_$1/password.txt \
+	  --verbosity $LogLevel \
+	  > ./logs/validator_$1.log &
+}
+function CreateWallet_Prysm() {
+	# Import Wallet and Accounts
+	mkdir data/wallet_dir/$1
+	#cp /root/prysm/validator .
 
+	clients/validator \
+		accounts \
+		import \
+		--accept-terms-of-use \
+		--keys-dir=consensus/validator_keys_$1/ \
+		--wallet-dir=data/wallet_dir/$1 \
+		--wallet-password-file=consensus/validator_keys_$1/password.txt \
+		--account-password-file=consensus/validator_keys_$1/password.txt
+}
 #git clone https://github.com/q9f/mergednet.git
 #cd mergednet
 
