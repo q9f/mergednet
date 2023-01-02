@@ -1,12 +1,48 @@
+NodesCount=2
+LogLevel=info
+######## Checker Functions
 function Log() {
 	echo
 	echo "--> $1"
 }
+function CheckGeth()
+{
+	Log "Checking Geth $1"
+	test -z $my_ip && my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
+	geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//
+	echo Peers: `geth attach --exec "admin.peers" data/execution/$1/geth.ipc | grep "remoteAddress" | grep -e $my_ip -e "127.0.0.1"`
+	echo Block Number: `geth attach --exec "eth.blockNumber" data/execution/$1/geth.ipc`
+}
+function CheckBeacon()
+{
+	Log "Checking Beacon $1"
+	echo My ID: `curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.peer_id"`
+	echo My enr: `curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.enr"`
+	echo Peer Count: `curl http://localhost:$((9596 + $1))/eth/v1/node/peers 2>/dev/null | jq -r ".meta.count"`
+	curl http://localhost:$((9596 + $1))/eth/v1/node/syncing 2>/dev/null | jq
+}
+function CheckAll()
+{
+	for i in $(seq 0 $(($NodesCount-1))); do
+		CheckGeth $i
+	done
+	for i in $(seq 0 $(($NodesCount-1))); do
+		CheckBeacon $i
+	done
+}
+########
+
+function KillAll() {
+	Log "Kill All Apps"
+	killall geth beacon-chain validator
+	pkill -f ./prysm.*
+	pkill -f lodestar.js
+	docker compose -f /home/adigium/eth-pos-devnet/docker-run.yml down || echo Looks like docker is not running.
+}
 function PrepareEnvironment() {
 	Log "Cleaning Environment"
-	killall -9 geth 
-	pkill -9 -f "lodestar.js beacon"
-	pkill -9 -f "lodestar.js validator"
+	KillAll
+	
 	git clean -fxd
 	rm execution/bootnodes.txt consensus/bootnodes.txt
 
@@ -51,7 +87,7 @@ function RunGeth()
 	  --syncmode full \
 	  --bootnodes=$bootnodes \
 	  > ./logs/geth_$1.log &
-	sleep 1 # Set to 5 seconds to allow the geth to bind to the external IP before reading enode
+	sleep 5 # Set to 5 seconds to allow the geth to bind to the external IP before reading enode
 	#local variablename="bootnode_geth_$1"
 	#export $variablename=`geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//`
 	#Log "$variablename = ${!variablename}"
@@ -153,8 +189,6 @@ function RunValidator()
 
 #git clone https://github.com/q9f/mergednet.git
 #cd mergednet
-LogLevel=info
-NodesCount=2
 
 PrepareEnvironment
 
