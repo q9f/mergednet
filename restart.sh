@@ -58,7 +58,7 @@ function AdjustTimestamps {
 	Log "timestampHex=$timestampHex"
 
 	sed -i s/\"timestamp\":.*/\"timestamp\":\"0x$timestampHex\",/g execution/genesis.json
-	sed -i s/MIN_GENESIS_TIME:.*/MIN_GENESIS_TIME: $timestamp/g consensus/config.yaml
+	sed -i s/MIN_GENESIS_TIME:.*/"MIN_GENESIS_TIME: $timestamp"/g consensus/config.yaml
 }
 function InitGeth()
 {
@@ -191,7 +191,7 @@ function RunValidator()
 #cd mergednet
 
 PrepareEnvironment
-
+set -e
 AdjustTimestamps
 
 for i in $(seq 0 $(($NodesCount-1))); do
