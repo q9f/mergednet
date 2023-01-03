@@ -56,7 +56,10 @@ function PrepareEnvironment() {
 	test -d logs || mkdir logs
 	test -d data || mkdir data
 	test -d data/wallet_dir || mkdir data/wallet_dir
-	cp -R consensus/validator_keys consensus/validator_keys_1
+	if [[ -d ../validator_keys8 ]]; then
+		rm consensus/validator_keys/*
+		cp -R ../validator_keys8/* consensus/validator_keys
+	fi
 
 	my_ip=`curl ifconfig.me 2>/dev/null` && Log "my_ip=$my_ip"
 }
@@ -263,9 +266,10 @@ done
 
 sleep 5
 
-for i in $(seq 0 $(($NodesCount-1))); do
-	RunValidator $i
-done
+#for i in $(seq 0 $(($NodesCount-1))); do
+#	RunValidator $i
+#done
+RunValidator 0
 
 CheckAll
 
