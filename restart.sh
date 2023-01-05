@@ -3,7 +3,7 @@ LogLevel=debug
 ######## Checker Functions
 function Log() {
 	echo
-	echo "--> $1"
+	echo "--> $@"
 }
 function CheckGeth()
 {
@@ -79,7 +79,13 @@ function InitGeth()
 	  --datadir "./data/execution/$1" \
 	  ./execution/genesis.json
 }
-
+function ImportGethAccount()
+{
+	Log Importing Account 0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f
+	echo "password" > data/execution/geth_password.txt
+	echo "28fb2da825b6ad656a8301783032ef05052a2899a81371c46ae98965a6ecbbaf" > data/execution/account_geth_privateKey
+	geth --datadir=data/execution/0 account import --password data/execution/geth_password.txt data/execution/account_geth_privateKey
+}
 function RunGeth()
 {
 	Log "Running geth $1 on port $((8551 + $1))"
@@ -92,6 +98,7 @@ function RunGeth()
 		--http.addr=0.0.0.0 \
 		--http.vhosts=* \
 		--http.corsdomain=* \
+	  --allow-insecure-unlock \
 	  --networkid 39677693 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
@@ -198,6 +205,49 @@ function RunBeacon_Prysm() {
 	echo $my_enr >> consensus/bootnodes.txt
 }
 
+function RunBeacon_Lighthouse() {
+	Log "Running Beacon $1"
+	local bootnodes=`cat consensus/bootnodes.txt 2>/dev/null | grep . | tr '\n' ',' | sed s/,$//g`
+	echo "Beacon Bootnodes = $bootnodes"
+	
+	nohup lighthouse beacon \
+		--eth1 \
+		--http \
+		--reset-payload-statuses \
+		--staking \
+		--subscribe-all-subnets \
+		--validator-monitor-auto \
+		--enable-private-discovery \
+		--boot-nodes=$bootnodes \
+		--datadir "./data/consensus/$1" \
+		--debug-level $LogLevel \
+		--eth1-endpoints "http://127.0.0.1:$((8545 + $1))" \
+		--execution-endpoint "http://127.0.0.1:$((8551 + $1))" \
+		--execution-jwt "./data/execution/$1/geth/jwtsecret" \
+		--graffiti "John.Risk" \
+		--http-allow-origin * \
+		--http-port $((5052 + $1)) \
+		--port $((9000 + $1)) \
+		--suggested-fee-recipient "0xCaA29806044A08E533963b2e573C1230A2cd9a2d" \
+		--target-peers $1 \
+		--testnet-dir consensus \
+
+
+	  --paramsFile "./consensus/config.yaml" \
+	  --genesisStateFile "./consensus/genesis.ssz" \
+	  > ./logs/beacon_$1.log &
+
+	echo Waiting for Beacon enr ...
+	local my_enr=''
+	while [[ -z $my_enr ]]
+	do
+		sleep 1
+		my_enr=`curl http://localhost:$((9596 + $1))/eth/v1/node/identity 2>/dev/null | jq -r ".data.enr"`
+	done
+	echo "My Enr = $my_enr"
+	echo $my_enr >> consensus/bootnodes.txt
+}
+
 function RunValidator()
 {
 	Log "Running Validators $1"
@@ -272,6 +322,9 @@ AdjustTimestamps
 
 for i in $(seq 0 $(($NodesCount-1))); do
 	InitGeth $i
+	if [[ $i == 0 ]]; then
+		ImportGethAccount
+	fi
 	RunGeth $i
 done
 
