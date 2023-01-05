@@ -1,5 +1,5 @@
 NodesCount=2
-LogLevel=info
+LogLevel=debug
 ######## Checker Functions
 function Log() {
 	echo
@@ -245,6 +245,24 @@ function CreateWallet_Prysm() {
 		--wallet-password-file=consensus/validator_keys_$1/password.txt \
 		--account-password-file=consensus/validator_keys_$1/password.txt
 }
+function RunStaker {
+	echo {\"keys\":$(cat `ls -rt /root/validator_keys1/deposit_data* | tail -n 1`), \"address\":\"0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f\", \"privateKey\": \"0x28fb2da825b6ad656a8301783032ef05052a2899a81371c46ae98965a6ecbbaf\"} > /root/validator_keys1/payload.txt
+	
+	curl -X POST -H "Content-Type: application/json" -d @/root/validator_keys1/payload.txt http://localhost:8005/api/account/stake
+
+	nohup clients/lodestar validator \
+	  --dataDir "./data/consensus/1" \
+	  --beaconNodes "http://127.0.0.1:9597" \
+	  --suggestedFeeRecipient "0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f" \
+	  --graffiti "YOLO MERGEDNET GETH LODESTAR" \
+	  --paramsFile "./consensus/config.yaml" \
+	  --importKeystores "/root/validator_keys1" \
+	  --importKeystoresPassword "/root/validator_keys1/password.txt" \
+	  --logLevel $LogLevel \
+	  > ./logs/validator_1.log &
+	  
+	tail -f logs/validator_1.log -n1000 
+}
 #git clone https://github.com/q9f/mergednet.git
 #cd mergednet
 
@@ -270,6 +288,9 @@ sleep 5
 #	RunValidator $i
 #done
 RunValidator 0
+
+#RunStaker
+
 
 CheckAll
 
