@@ -98,7 +98,6 @@ function RunGeth()
 		--http.addr=0.0.0.0 \
 		--http.vhosts=* \
 		--http.corsdomain=* \
-	  --allow-insecure-unlock \
 	  --networkid 123456 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
