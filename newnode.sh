@@ -90,7 +90,7 @@ function RunGeth()
 		--http.addr=0.0.0.0 \
 		--http.vhosts=* \
 		--http.corsdomain=* \
-	  --networkid 39677693 \
+	  --networkid 123456 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
 	  --port $((30303 + $1)) \

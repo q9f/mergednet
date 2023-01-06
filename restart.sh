@@ -99,7 +99,7 @@ function RunGeth()
 		--http.vhosts=* \
 		--http.corsdomain=* \
 	  --allow-insecure-unlock \
-	  --networkid 39677693 \
+	  --networkid 123456 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
 	  --port $((30303 + $1)) \
@@ -186,7 +186,7 @@ function RunBeacon_Prysm() {
 	  --monitoring-host=0.0.0.0 \
 	  --p2p-host-ip=$my_ip \
 	  --accept-terms-of-use \
-	  --chain-id=39677693 \
+	  --chain-id=32382 \
 	  --rpc-port=$((4010 + $1)) \
 	  --p2p-tcp-port=$((13000 + $1)) \
 	  --p2p-udp-port=$((12000 + $1)) \
