@@ -98,6 +98,7 @@ function RunGeth()
 		--http.addr=0.0.0.0 \
 		--http.vhosts=* \
 		--http.corsdomain=* \
+		--nat extip:$my_ip \
 	  --networkid 123456 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
@@ -105,7 +106,7 @@ function RunGeth()
 	  --syncmode full \
 	  --bootnodes=$bootnodes \
 	  > ./logs/geth_$1.log &
-	sleep 5 # Set to 5 seconds to allow the geth to bind to the external IP before reading enode
+	sleep 1 # Set to 5 seconds to allow the geth to bind to the external IP before reading enode
 	#local variablename="bootnode_geth_$1"
 	#export $variablename=`geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//`
 	#Log "$variablename = ${!variablename}"
