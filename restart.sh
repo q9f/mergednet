@@ -98,7 +98,6 @@ function RunGeth()
 		--http.addr=0.0.0.0 \
 		--http.vhosts=* \
 		--http.corsdomain=* \
-		--nat extip:$my_ip \
 	  --networkid 123456 \
 	  --datadir "./data/execution/$1" \
 	  --authrpc.port $((8551 + $1)) \
@@ -111,7 +110,7 @@ function RunGeth()
 	#export $variablename=`geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//`
 	#Log "$variablename = ${!variablename}"
 	#echo ${!variablename} >> execution/bootnodes.txt
-	local my_enode=$(geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$//)
+	local my_enode=$(geth attach --exec "admin.nodeInfo.enode" data/execution/$1/geth.ipc | sed s/^\"// | sed s/\"$// | sed s/'127.0.0.1'/$my_ip/)
 	echo $my_enode >> execution/bootnodes.txt
 }
 function StoreGethHash() {
