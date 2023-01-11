@@ -1,5 +1,5 @@
 NodesCount=2
-LogLevel=debug
+LogLevel=info
 ######## Checker Functions
 function Log() {
 	echo
@@ -152,6 +152,11 @@ function RunBeacon() {
 	  --bootnodes=$bootnodes \
 	  > ./logs/beacon_$1.log &
 
+	  #--eth1=true \
+	  #--eth1.providerUrls=http://localhost:$((8545 + $1)) \
+	  #--execution.urls=http://localhost:$((8545 + $1)) \
+	  #--subscribeAllSubnets=true \
+	  
 	echo Waiting for Beacon enr ...
 	local my_enr=''
 	while [[ -z $my_enr ]]
@@ -295,9 +300,10 @@ function CreateWallet_Prysm() {
 		--account-password-file=consensus/validator_keys_$1/password.txt
 }
 function RunStaker {
-	echo {\"keys\":$(cat `ls -rt /root/validator_keys1/deposit_data* | tail -n 1`), \"address\":\"0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f\", \"privateKey\": \"0x28fb2da825b6ad656a8301783032ef05052a2899a81371c46ae98965a6ecbbaf\"} > /root/validator_keys1/payload.txt
+	local folder=/root/validator_keys8_other
+	echo {\"keys\":$(cat `ls -rt $folder/deposit_data* | tail -n 1`), \"address\":\"0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f\", \"privateKey\": \"0x28fb2da825b6ad656a8301783032ef05052a2899a81371c46ae98965a6ecbbaf\"} > $folder/payload.txt
 	
-	curl -X POST -H "Content-Type: application/json" -d @/root/validator_keys1/payload.txt http://localhost:8005/api/account/stake
+	curl -X POST -H "Content-Type: application/json" -d @$folder/payload.txt http://localhost:8005/api/account/stake
 
 	nohup clients/lodestar validator \
 	  --dataDir "./data/consensus/1" \
@@ -305,12 +311,10 @@ function RunStaker {
 	  --suggestedFeeRecipient "0xF359C69a1738F74C044b4d3c2dEd36c576A34d9f" \
 	  --graffiti "YOLO MERGEDNET GETH LODESTAR" \
 	  --paramsFile "./consensus/config.yaml" \
-	  --importKeystores "/root/validator_keys1" \
-	  --importKeystoresPassword "/root/validator_keys1/password.txt" \
+	  --importKeystores "$folder" \
+	  --importKeystoresPassword "$folder/password.txt" \
 	  --logLevel $LogLevel \
 	  > ./logs/validator_1.log &
-	  
-	tail -f logs/validator_1.log -n1000 
 }
 #git clone https://github.com/q9f/mergednet.git
 #cd mergednet
@@ -342,7 +346,6 @@ sleep 5
 RunValidator 0
 
 #RunStaker
-
 
 CheckAll
 
